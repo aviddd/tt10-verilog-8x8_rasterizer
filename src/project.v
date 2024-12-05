@@ -1,6 +1,6 @@
 /*
  * TinyGPU Top Module
- * Author: Your Name
+ * Author: David Sharma
  * SPDX-License-Identifier: Apache-2.0
  */
 
