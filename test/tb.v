@@ -1,12 +1,12 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
-/* This testbench just instantiates the module and makes some convenient wires
-   that can be driven / tested by the cocotb test.py.
+/* This testbench instantiates the module and provides a minimal setup.
+   For detailed testing, cocotb is used.
 */
 module tb ();
 
-  // Dump the signals to a VCD file. You can view it with gtkwave or surfer.
+  // Dump the signals to a VCD file for viewing with waveform tools.
   initial begin
     $dumpfile("tb.vcd");
     $dumpvars(0, tb);
@@ -22,14 +22,14 @@ module tb ();
   wire [7:0] uo_out;
   wire [7:0] uio_out;
   wire [7:0] uio_oe;
+
 `ifdef GL_TEST
   wire VPWR = 1'b1;
   wire VGND = 1'b0;
 `endif
 
-  // Replace tt_um_example with your module name:
-  tt_um_example user_project (
-
+  // Instantiate your module:
+  tt_um_david_tinygpu user_project (
       // Include power ports for the Gate Level test:
 `ifdef GL_TEST
       .VPWR(VPWR),
@@ -43,7 +43,24 @@ module tb ();
       .uio_oe (uio_oe),   // IOs: Enable path (active high: 0=input, 1=output)
       .ena    (ena),      // enable - goes high when design is selected
       .clk    (clk),      // clock
-      .rst_n  (rst_n)     // not reset
+      .rst_n  (rst_n)     // active low reset
   );
 
+  // Clock generation
+  initial clk = 0;
+  always #5 clk = ~clk;  // 100 MHz clock (period = 10 ns)
+
+  // Reset and enable signals
+  initial begin
+    ena = 1;
+    rst_n = 0;
+    ui_in = 8'b0;
+    uio_in = 8'b0;
+    // Wait for a few clock cycles before releasing reset
+    @(posedge clk);
+    @(posedge clk);
+    rst_n = 1;
+  end
+
 endmodule
+
