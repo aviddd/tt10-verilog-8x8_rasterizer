@@ -131,6 +131,7 @@ module command_processor (
                 EXECUTE: begin
                     // Signal the rasterizer to execute the command
                     state <= IDLE;
+                    current_cmd <= 2'b00;  // Clear the current command
                 end
             endcase
         end
