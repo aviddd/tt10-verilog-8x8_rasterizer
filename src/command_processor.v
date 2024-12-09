@@ -61,6 +61,7 @@ module command_processor (
                 IDLE: begin
                     if (en) begin
                         current_cmd <= cmd;
+                        // For the first parameter of certain commands, we set directly
                         param_count <= 3'd0;
                         case (cmd)
                             2'b01: begin  // DRAW_PIXEL or CLEAR
@@ -71,70 +72,81 @@ module command_processor (
                                     y1 <= 3'd7;
                                     state <= EXECUTE;
                                 end else begin
-                                    // DRAW_PIXEL
+                                    // DRAW_PIXEL: The first param is x1
                                     x1 <= param[2:0];
-                                    param_count <= 3'd1;
+                                    // We'll need one more param (y1), so go to LOAD_PARAM
                                     state <= LOAD_PARAM;
                                 end
                             end
                             2'b10: begin  // DRAW_LINE
                                 x1 <= param[2:0];
-                                param_count <= 3'd1;
+                                // Need more params: y1, x2, y2
                                 state <= LOAD_PARAM;
                             end
                             2'b11: begin  // FILL_RECT
                                 x1 <= param[2:0];
-                                param_count <= 3'd1;
+                                // Need more params: y1, width, height
                                 state <= LOAD_PARAM;
                             end
-                            default: begin  // NO_OP or unrecognized
+                            default: begin  // NO_OP or unrecognized command
                                 state <= IDLE;
-                                current_cmd <= 2'b00; // Clear current command on unrecognized
+                                current_cmd <= 2'b00;
                             end
                         endcase
                     end else begin
-                        current_cmd <= 2'b00; // Ensure we clear when no command is given
+                        current_cmd <= 2'b00;
                     end
                 end
                 LOAD_PARAM: begin
-                    if (en && cmd == 2'b00) begin  // NO_OP used for parameter loading
-                        param_count <= param_count + 3'd1;
+                    if (en && cmd == 2'b00) begin
+                        // Parameter loading via NO_OP
+                        // Assign parameters based on current_cmd and param_count
                         case (current_cmd)
                             2'b01: begin  // DRAW_PIXEL
-                                if (param_count == 3'd1) begin
+                                // The next parameter after x1 is y1
+                                // Since we've arrived here, param_count=0 before reading this param
+                                // Assign y1 now, then increment param_count
+                                if (param_count == 3'd0) begin
                                     y1 <= param[2:0];
                                     state <= EXECUTE;
                                 end
+                                param_count <= param_count + 3'd1;
                             end
                             2'b10: begin  // DRAW_LINE
+                                // We need y1, x2, y2 in that order
                                 case (param_count)
-                                    3'd1: y1 <= param[2:0];
-                                    3'd2: x2 <= param[2:0];
-                                    3'd3: begin
+                                    3'd0: y1 <= param[2:0];
+                                    3'd1: x2 <= param[2:0];
+                                    3'd2: begin
                                         y2 <= param[2:0];
                                         state <= EXECUTE;
                                     end
                                 endcase
+                                param_count <= param_count + 3'd1;
                             end
                             2'b11: begin  // FILL_RECT
+                                // We need y1, width, height
                                 case (param_count)
-                                    3'd1: y1 <= param[2:0];
-                                    3'd2: width <= param[2:0];
-                                    3'd3: begin
+                                    3'd0: y1 <= param[2:0];
+                                    3'd1: width <= param[2:0];
+                                    3'd2: begin
                                         height <= param[2:0];
                                         state <= EXECUTE;
                                     end
                                 endcase
+                                param_count <= param_count + 3'd1;
                             end
                         endcase
                     end else begin
-                        // If we expected a parameter but didn't get NO_OP, reset
+                        // If we expected NO_OP for parameters but didn't get it,
+                        // return to IDLE and clear the command
                         state <= IDLE;
                         current_cmd <= 2'b00;
                     end
                 end
                 EXECUTE: begin
-                    // After execution, return to IDLE and clear the current command
+                    // Execute the command in rasterizer
+                    // After execution, return to IDLE and clear command
                     state <= IDLE;
                     current_cmd <= 2'b00;
                 end
