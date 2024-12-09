@@ -14,24 +14,27 @@ async def test_command_processor(dut):
     dut.ui_in.value = 0
     await ClockCycles(dut.clk, 5)
     dut.rst_n.value = 1
+    dut._log.info("Design has been reset")
 
     # Wait extra cycles for design to settle
     await ClockCycles(dut.clk, 10)
+    dut._log.info("Starting DRAW_PIXEL test at (1,1)")
 
     def set_ui_in(en, cmd, param):
-        # en (bit 7), cmd (bits [6:5]), param (bits [4:0])
-        return ((en & 1) << 7) | ((cmd & 0b11) << 5) | (param & 0x1F)
+        val = ((en & 1) << 7) | ((cmd & 0b11) << 5) | (param & 0x1F)
+        dut._log.info(f"Setting ui_in to EN={en} CMD={cmd:02b} PARAM={param:05b} (0x{val:02X})")
+        return val
 
-    async def wait_for_frame_sync(timeout=100):
+    async def wait_for_frame_sync(timeout=200):
         # Wait until frame_sync is high
-        for _ in range(timeout):
+        for i in range(timeout):
             await RisingEdge(dut.clk)
             val_bin = dut.uo_out.value.binstr.replace('x', '0').replace('X', '0')
             val_int = int(val_bin, 2)
-            # frame_sync at uo_out[4]
             if (val_int & (1 << 4)) != 0:
+                dut._log.info(f"Frame sync detected at cycle {i}")
                 return
-        assert False, "Frame sync not asserted in time"
+        raise AssertionError("Frame sync not asserted in time")
 
     def get_pixel_data():
         val_bin = dut.uo_out.value.binstr.replace('x', '0').replace('X', '0')
@@ -40,11 +43,6 @@ async def test_command_processor(dut):
 
     def pixel_index(x, y):
         return y * 8 + x
-
-    # Test DRAW_PIXEL at (1,1)
-    # DRAW_PIXEL cmd = 01
-    # Cycle 1: en=1, cmd=01, param=x1 in param[2:0]
-    # Cycle 2: en=1, cmd=00 (NO_OP), param=y1 in param[2:0]
 
     x1, y1 = 1, 1
 
@@ -58,19 +56,20 @@ async def test_command_processor(dut):
 
     # Clear input
     dut.ui_in.value = 0
+    dut._log.info("Commands sent, now waiting for frame_sync")
 
     # Wait for frame_sync
     await wait_for_frame_sync()
 
-    # Wait one more cycle after frame_sync before reading pixels
-    # This ensures the rasterizer has moved to R_DRAW state
+    # One more cycle after frame_sync before reading pixels
     await RisingEdge(dut.clk)
 
-    # Read all 64 pixels
     pixel_values = []
     for i in range(64):
         await RisingEdge(dut.clk)
-        pixel_values.append(get_pixel_data())
+        p = get_pixel_data()
+        pixel_values.append(p)
+        dut._log.info(f"Pixel index {i}: {p}")
 
     # Check that only pixel (1,1) is set
     expected_idx = pixel_index(x1, y1)
@@ -80,5 +79,4 @@ async def test_command_processor(dut):
         else:
             assert val == 0, f"DRAW_PIXEL failed: Pixel index {i} expected 0, got {val}"
 
-    dut._log.info("DRAW_PIXEL test passed")
-    dut._log.info("All tests completed successfully")
+    dut._log.info("DRAW_PIXEL test passed successfully.")
