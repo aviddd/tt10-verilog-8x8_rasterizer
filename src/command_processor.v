@@ -89,8 +89,11 @@ module command_processor (
                             end
                             default: begin  // NO_OP or unrecognized
                                 state <= IDLE;
+                                current_cmd <= 2'b00; // Clear current command on unrecognized
                             end
                         endcase
+                    end else begin
+                        current_cmd <= 2'b00; // Ensure we clear when no command is given
                     end
                 end
                 LOAD_PARAM: begin
@@ -125,13 +128,15 @@ module command_processor (
                             end
                         endcase
                     end else begin
-                        state <= IDLE;  // Error: Expected NO_OP
+                        // If we expected a parameter but didn't get NO_OP, reset
+                        state <= IDLE;
+                        current_cmd <= 2'b00;
                     end
                 end
                 EXECUTE: begin
-                    // Signal the rasterizer to execute the command
+                    // After execution, return to IDLE and clear the current command
                     state <= IDLE;
-                    current_cmd <= 2'b00;  // Clear the current command
+                    current_cmd <= 2'b00;
                 end
             endcase
         end
