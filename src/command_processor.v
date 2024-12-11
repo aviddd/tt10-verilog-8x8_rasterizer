@@ -22,15 +22,12 @@ module command_processor (
     localparam IDLE       = 3'd0;
     localparam LOAD_PARAM = 3'd1;
     localparam EXECUTE    = 3'd2;
+    localparam WAIT       = 3'd3;  // New state: wait one cycle before asserting cmd_ready
 
     reg [2:0] state;
     reg [1:0] current_cmd;
     reg [2:0] x1, y1, x2, y2, width, height;
     reg [2:0] param_count;
-
-    // Internal signals to hold parameters before announcing readiness
-    reg [1:0] latched_cmd;
-    reg [2:0] latched_x1, latched_y1, latched_x2, latched_y2, latched_width, latched_height;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -44,7 +41,7 @@ module command_processor (
             out_x1 <= 3'd0; out_y1 <= 3'd0; out_x2 <= 3'd0; out_y2 <= 3'd0; out_width <= 3'd0; out_height <= 3'd0;
             cmd_ready <= 1'b0;
         end else begin
-            // By default, cmd_ready is low unless we specifically set it
+            // By default, cmd_ready is low unless we set it
             cmd_ready <= 1'b0;
 
             case (state)
@@ -128,15 +125,15 @@ module command_processor (
                 end
 
                 EXECUTE: begin
-                    // All parameters are now stable
-                    latched_cmd <= current_cmd;
-                    latched_x1 <= x1; latched_y1 <= y1; latched_x2 <= x2; latched_y2 <= y2;
-                    latched_width <= width; latched_height <= height;
-
-                    // Signal to rasterizer that command and parameters are ready
+                    // Parameters are now set; put them on outputs
                     out_cmd <= current_cmd;
                     out_x1 <= x1; out_y1 <= y1; out_x2 <= x2; out_y2 <= y2; out_width <= width; out_height <= height;
+                    // Move to WAIT state before asserting cmd_ready
+                    state <= WAIT;
+                end
 
+                WAIT: begin
+                    // Now that parameters have been stable on outputs for one full cycle, assert cmd_ready
                     cmd_ready <= 1'b1;
                     // Return to IDLE and clear current_cmd
                     state <= IDLE;
