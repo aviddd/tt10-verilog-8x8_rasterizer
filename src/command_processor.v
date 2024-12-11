@@ -1,17 +1,14 @@
-/*
- * Command Processor Module
- * Decodes commands and parameters.
- */
-
 `default_nettype none
 
 module command_processor (
     input  wire       clk,
     input  wire       rst_n,
     input  wire [7:0] ui_in,
-    output wire [3:0] pixel_data,
-    output wire       frame_sync
+    output reg  [1:0] out_cmd,
+    output reg  [2:0] out_x1, out_y1, out_x2, out_y2, out_width, out_height,
+    output reg        cmd_ready
 );
+
     // Input decoding
     wire       en;
     wire [1:0] cmd;
@@ -28,25 +25,12 @@ module command_processor (
 
     reg [2:0] state;
     reg [1:0] current_cmd;
-
-    // Parameter registers
     reg [2:0] x1, y1, x2, y2, width, height;
     reg [2:0] param_count;
 
-    // Instantiate Rasterizer
-    rasterizer raster (
-        .clk(clk),
-        .rst_n(rst_n),
-        .cmd(current_cmd),
-        .x1(x1),
-        .y1(y1),
-        .x2(x2),
-        .y2(y2),
-        .width(width),
-        .height(height),
-        .pixel_data(pixel_data),
-        .frame_sync(frame_sync)
-    );
+    // Internal signals to hold parameters before announcing readiness
+    reg [1:0] latched_cmd;
+    reg [2:0] latched_x1, latched_y1, latched_x2, latched_y2, latched_width, latched_height;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -56,40 +40,41 @@ module command_processor (
             x1 <= 3'd0; y1 <= 3'd0;
             x2 <= 3'd0; y2 <= 3'd0;
             width <= 3'd0; height <= 3'd0;
+            out_cmd <= 2'b00;
+            out_x1 <= 3'd0; out_y1 <= 3'd0; out_x2 <= 3'd0; out_y2 <= 3'd0; out_width <= 3'd0; out_height <= 3'd0;
+            cmd_ready <= 1'b0;
         end else begin
+            // By default, cmd_ready is low unless we specifically set it
+            cmd_ready <= 1'b0;
+
             case (state)
                 IDLE: begin
                     if (en) begin
                         current_cmd <= cmd;
-                        // For the first parameter of certain commands, we set directly
                         param_count <= 3'd0;
                         case (cmd)
                             2'b01: begin  // DRAW_PIXEL or CLEAR
                                 if (param == 5'b11111) begin
                                     // CLEAR command
-                                    // Set x1 and y1 to 7 so rasterizer recognizes CLEAR
                                     x1 <= 3'd7;
                                     y1 <= 3'd7;
                                     state <= EXECUTE;
                                 end else begin
-                                    // DRAW_PIXEL: The first param is x1
+                                    // DRAW_PIXEL: first param is x1
                                     x1 <= param[2:0];
-                                    // We'll need one more param (y1), so go to LOAD_PARAM
                                     state <= LOAD_PARAM;
                                 end
                             end
                             2'b10: begin  // DRAW_LINE
                                 x1 <= param[2:0];
-                                // Need more params: y1, x2, y2
                                 state <= LOAD_PARAM;
                             end
                             2'b11: begin  // FILL_RECT
                                 x1 <= param[2:0];
-                                // Need more params: y1, width, height
                                 state <= LOAD_PARAM;
                             end
-                            default: begin  // NO_OP or unrecognized command
-                                state <= IDLE;
+                            default: begin
+                                // NO_OP or unrecognized
                                 current_cmd <= 2'b00;
                             end
                         endcase
@@ -97,23 +82,21 @@ module command_processor (
                         current_cmd <= 2'b00;
                     end
                 end
+
                 LOAD_PARAM: begin
                     if (en && cmd == 2'b00) begin
-                        // Parameter loading via NO_OP
-                        // Assign parameters based on current_cmd and param_count
+                        // Use NO_OP to load next param
                         case (current_cmd)
-                            2'b01: begin  // DRAW_PIXEL
-                                // The next parameter after x1 is y1
-                                // Since we've arrived here, param_count=0 before reading this param
-                                // Assign y1 now, then increment param_count
+                            2'b01: begin
+                                // Next param is y1 for DRAW_PIXEL
                                 if (param_count == 3'd0) begin
                                     y1 <= param[2:0];
                                     state <= EXECUTE;
                                 end
                                 param_count <= param_count + 3'd1;
                             end
-                            2'b10: begin  // DRAW_LINE
-                                // We need y1, x2, y2 in that order
+                            2'b10: begin
+                                // DRAW_LINE: need y1, x2, y2 in sequence
                                 case (param_count)
                                     3'd0: y1 <= param[2:0];
                                     3'd1: x2 <= param[2:0];
@@ -124,8 +107,8 @@ module command_processor (
                                 endcase
                                 param_count <= param_count + 3'd1;
                             end
-                            2'b11: begin  // FILL_RECT
-                                // We need y1, width, height
+                            2'b11: begin
+                                // FILL_RECT: need y1, width, height
                                 case (param_count)
                                     3'd0: y1 <= param[2:0];
                                     3'd1: width <= param[2:0];
@@ -138,15 +121,24 @@ module command_processor (
                             end
                         endcase
                     end else begin
-                        // If we expected NO_OP for parameters but didn't get it,
-                        // return to IDLE and clear the command
+                        // If we expected NO_OP but didn't get it
                         state <= IDLE;
                         current_cmd <= 2'b00;
                     end
                 end
+
                 EXECUTE: begin
-                    // Execute the command in rasterizer
-                    // After execution, return to IDLE and clear command
+                    // All parameters are now stable
+                    latched_cmd <= current_cmd;
+                    latched_x1 <= x1; latched_y1 <= y1; latched_x2 <= x2; latched_y2 <= y2;
+                    latched_width <= width; latched_height <= height;
+
+                    // Signal to rasterizer that command and parameters are ready
+                    out_cmd <= current_cmd;
+                    out_x1 <= x1; out_y1 <= y1; out_x2 <= x2; out_y2 <= y2; out_width <= width; out_height <= height;
+
+                    cmd_ready <= 1'b1;
+                    // Return to IDLE and clear current_cmd
                     state <= IDLE;
                     current_cmd <= 2'b00;
                 end
