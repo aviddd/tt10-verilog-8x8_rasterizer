@@ -44,7 +44,7 @@ async def test_command_processor(dut):
     def pixel_index(x, y):
         return y * 8 + x
 
-    x1, y1 = 1, 1
+    x1, y1 = 2, 1
 
     # Send x1
     dut.ui_in.value = set_ui_in(en=1, cmd=0b01, param=(x1 & 0x07))
