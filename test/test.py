@@ -42,7 +42,7 @@ async def test_command_processor(dut):
         return val_int & 0xF  # pixel_data is uo_out[3:0]
 
     def pixel_index(x, y):
-        return y * 8 + x + 1
+        return y * 8 + x 
 
     x1, y1 = 1, 1
 
