@@ -1,23 +1,23 @@
 `default_nettype none
 
 module rasterizer (
-    input  wire       clk,
-    input  wire       rst_n,
+    input  wire        clk,
+    input  wire        rst_n,
     input  wire [1:0] out_cmd,
     input  wire [2:0] out_x1, out_y1, out_x2, out_y2, out_width, out_height,
-    input  wire       cmd_ready,
+    input  wire        cmd_ready,
     output reg  [3:0] pixel_data,
-    output reg        frame_sync
+    output reg         frame_sync
 );
 
     integer i, j;
     reg [7:0] frame_buffer [7:0];
 
     reg [2:0] raster_state;
-    localparam R_IDLE    = 3'd0;
-    localparam R_WAIT    = 3'd1; // New state to wait after cmd_ready
-    localparam R_DRAW    = 3'd2;
-    localparam R_OUTPUT  = 3'd3;
+    localparam R_IDLE  = 3'd0;
+    localparam R_WAIT  = 3'd1; // New state to wait after cmd_ready
+    localparam R_DRAW  = 3'd2;
+    localparam R_OUTPUT = 3'd3;
 
     reg [1:0] latched_cmd;
     reg [2:0] latched_x1, latched_y1, latched_x2, latched_y2, latched_width, latched_height;
@@ -41,13 +41,11 @@ module rasterizer (
                 R_IDLE: begin
                     frame_sync <= 1'b0;
                     if (cmd_ready) begin
-                        // Move to WAIT state instead of directly latching
-                        raster_state <= R_WAIT;
+                        raster_state <= R_WAIT; 
                     end
                 end
 
                 R_WAIT: begin
-                    // Now latch parameters after they've been stable for a cycle
                     latched_cmd <= out_cmd;
                     latched_x1 <= out_x1;
                     latched_y1 <= out_y1;
@@ -55,50 +53,45 @@ module rasterizer (
                     latched_y2 <= out_y2;
                     latched_width <= out_width;
                     latched_height <= out_height;
-                    // Now go to DRAW state
-                    raster_state <= R_DRAW;
+                    raster_state <= R_DRAW; 
                 end
 
                 R_DRAW: begin
-                    // Execute the command with latched parameters
                     case (latched_cmd)
                         2'b01: begin
                             if (latched_x1 == 3'd7 && latched_y1 == 3'd7) begin
-                                // CLEAR
-                                for (i = 0; i < 8; i = i + 1) frame_buffer[i] = 8'b0;
+                                for (i = 0; i < 8; i = i + 1) 
+                                    frame_buffer[i] = 8'b0;
                             end else begin
-                                // DRAW_PIXEL
                                 frame_buffer[latched_y1][latched_x1] <= 1'b1;
                             end
                         end
                         2'b10: begin
-                            // DRAW_LINE (simplified)
                             frame_buffer[latched_y1][latched_x1] <= 1'b1;
                             frame_buffer[latched_y2][latched_x2] <= 1'b1;
                         end
                         2'b11: begin
-                            // FILL_RECT (simplified)
                             for (i = latched_y1; i < latched_y1 + latched_height; i = i + 1) begin
                                 for (j = latched_x1; j < latched_x1 + latched_width; j = j + 1) begin
-                                    if (i < 8 && j < 8) frame_buffer[i][j] <= 1'b1;
+                                    if (i < 8 && j < 8) 
+                                        frame_buffer[i][j] <= 1'b1;
                                 end
                             end
                         end
                         default: ; // NO_OP
                     endcase
-                    // Start output next
                     frame_sync <= 1'b1;
-                    output_counter <= 6'd0;
-                    raster_state <= R_OUTPUT;
+                    output_counter <= 6'd0; 
+                    raster_state <= R_OUTPUT; 
                 end
 
                 R_OUTPUT: begin
                     frame_sync <= 1'b0;
-                    x_addr <= output_counter[2:0];
+                    output_counter <= output_counter + 6'd1; // Increment first
+                    x_addr <= output_counter[2:0];         // Then assign
                     y_addr <= output_counter[5:3];
-                    output_counter <= output_counter + 6'd1;
                     if (output_counter == 6'd63) begin
-                        raster_state <= R_IDLE;
+                        raster_state <= R_IDLE;           
                     end
                 end
             endcase
