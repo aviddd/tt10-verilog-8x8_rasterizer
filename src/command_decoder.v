@@ -30,16 +30,17 @@ module command_decoder (
                         command <= ui_in[6:5];
                         x1 <= ui_in[4:2];
                         state <= DECODE_CMD;
+                        $display("IDLE: ui_in=%b, command=%b", ui_in, command);
                     end
                 end
                 DECODE_CMD: begin
                     y1 <= ui_in[4:2];
                     state <= EXECUTE;
+                    $display("DECODE_CMD: x1=%b, y1=%b, state=%b", x1, y1, state);
                 end
                 EXECUTE: begin
                     command_valid <= 1'b1;
-                    $display("Command Decoder: Command=%b, x1=%d, y1=%d, command_valid=%b",
-                             command, x1, y1, command_valid);
+                    $display("EXECUTE: command_valid=%b, x1=%b, y1=%b", command_valid, x1, y1);
                     state <= IDLE;
                 end
             endcase
