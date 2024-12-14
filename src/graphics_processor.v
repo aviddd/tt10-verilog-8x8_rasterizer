@@ -25,7 +25,8 @@ module graphics_processor (
             state <= IDLE;
             frame_start <= 1'b0;
             pixel_count <= 6'd0;
-            for (int i = 0; i < 8; i++) frame_buffer[i] <= 8'b0;
+            pixel_data <= 4'b0;  // Initialize pixel_data
+            for (int i = 0; i < 8; i++) frame_buffer[i] <= 8'b0;  // Clear frame buffer
         end else begin
             case (state)
                 IDLE: begin
