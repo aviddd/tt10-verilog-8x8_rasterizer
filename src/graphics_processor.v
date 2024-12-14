@@ -4,7 +4,7 @@ module graphics_processor (
     input  wire clk,
     input  wire rst_n,
     input  wire [1:0] command,
-    input  wire [2:0] x1, y1, x2, y2, rect_width, rect_height,
+    input  wire [2:0] x1, y1,
     input  wire command_valid,
     output reg  [3:0] pixel_data,
     output reg  frame_start
@@ -23,8 +23,9 @@ module graphics_processor (
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state <= IDLE;
+            latched_x1 <= 3'd0;
+            latched_y1 <= 3'd0;
             frame_start <= 1'b0;
-            pixel_count <= 6'd0;
             pixel_data <= 4'b0;
             for (int i = 0; i < 8; i++) frame_buffer[i] <= 8'b0;
         end else begin
@@ -34,13 +35,13 @@ module graphics_processor (
                         latched_x1 <= x1;
                         latched_y1 <= y1;
                         state <= DRAW;
-                        $display("IDLE -> DRAW: latched_x1=%b, latched_y1=%b", latched_x1, latched_y1);
+                        $display("IDLE -> DRAW: latched_x1=%d, latched_y1=%d", latched_x1, latched_y1);
                     end
                 end
                 DRAW: begin
                     frame_buffer[latched_y1][latched_x1] <= 1'b1;
-                    $display("DRAW: frame_buffer[%d][%d]=%b", latched_y1, latched_x1, frame_buffer[latched_y1][latched_x1]);
                     frame_start <= 1'b1;
+                    $display("DRAW: frame_buffer[%d][%d]=%b", latched_y1, latched_x1, frame_buffer[latched_y1][latched_x1]);
                     state <= OUTPUT;
                 end
                 OUTPUT: begin
