@@ -5,7 +5,7 @@
 SIM ?= icarus
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
-PROJECT_SOURCES = tt_um_david_tinygpu.v command_processor.v rasterizer.v
+PROJECT_SOURCES = tt_um_david_tinygpu.v command_decoder.v graphics_processor.v
 
 ifneq ($(GATES),yes)
 
