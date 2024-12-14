@@ -13,8 +13,7 @@ module command_decoder (
     localparam IDLE = 3'd0,
                DECODE_CMD = 3'd1,
                LOAD_PARAM1 = 3'd2,
-               LOAD_PARAM2 = 3'd3,
-               EXECUTE = 3'd4;
+               EXECUTE = 3'd3;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
