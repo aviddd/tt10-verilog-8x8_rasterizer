@@ -31,20 +31,20 @@ async def test_command_processor(dut):
 
     # Send x1
     dut.ui_in.value = set_ui_in(en=1, cmd=0b01, param=(x1 & 0x07))
-    await ClockCycles(dut.clk, 2)
+    await ClockCycles(dut.clk, 4)  # Increased delay
 
     # Send y1
     dut.ui_in.value = set_ui_in(en=1, cmd=0b00, param=(y1 & 0x07))
-    await ClockCycles(dut.clk, 2)
+    await ClockCycles(dut.clk, 4)  # Increased delay
 
     # Wait for frame_sync
-    await RisingEdge(dut.clk)
-    await ClockCycles(dut.clk, 10)  # Allow time for the DUT to process the command
+    await ClockCycles(dut.clk, 20)  # Allow time for the DUT to process
 
     pixel_values = []
     for i in range(64):
         await RisingEdge(dut.clk)
         pixel_values.append(sanitize_output(dut.uo_out.value))
+        dut._log.info(f"Pixel index {i}: Pixel data={pixel_values[-1]}")
 
     # Assert pixel at (1,1) is set
     assert pixel_values[9] == 1, f"Pixel (1,1) not set correctly. Got {pixel_values[9]}"
