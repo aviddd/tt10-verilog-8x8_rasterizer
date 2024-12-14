@@ -25,7 +25,7 @@ module graphics_processor (
             state <= IDLE;
             frame_start <= 1'b0;
             pixel_count <= 6'd0;
-            pixel_data <= 4'b0;  // Initialize pixel_data
+            pixel_data <= 4'b0;
             for (int i = 0; i < 8; i++) frame_buffer[i] <= 8'b0;  // Clear frame buffer
         end else begin
             case (state)
@@ -39,6 +39,8 @@ module graphics_processor (
                 end
                 DRAW: begin
                     frame_buffer[latched_y1][latched_x1] <= 1'b1;
+                    $display("Graphics Processor: latched_x1=%d, latched_y1=%d, frame_buffer[%d][%d]=%b",
+                             latched_x1, latched_y1, latched_y1, latched_x1, frame_buffer[latched_y1][latched_x1]);
                     frame_start <= 1'b1;
                     state <= OUTPUT;
                 end
