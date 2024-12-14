@@ -21,8 +21,7 @@ module command_processor (
     // State Machine States
     localparam IDLE        = 3'd0;
     localparam LOAD_PARAM = 3'd1;
-    localparam EXECUTE    = 3'd2;
-    localparam WAIT        = 3'd3; 
+    localparam EXECUTE    = 3'd2; 
 
     reg [2:0] state;
     reg [1:0] current_cmd;
@@ -119,18 +118,13 @@ module command_processor (
 
                 EXECUTE: begin
                     out_cmd <= current_cmd;
-                    // For CLEAR command, x1 and y1 are already 3'd7
                     out_x1 <= x1; out_y1 <= y1; 
                     out_x2 <= x2; out_y2 <= y2; 
                     out_width <= width; out_height <= height;
-                    state <= WAIT;
+                    cmd_ready <= 1'b1; // Assert cmd_ready in EXECUTE
+                    state <= IDLE;      // Go back to IDLE
                 end
 
-                WAIT: begin
-                    cmd_ready <= 1'b1;
-                    state <= IDLE;
-                    current_cmd <= 2'b00; 
-                end
             endcase
         end
     end
