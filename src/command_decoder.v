@@ -38,6 +38,8 @@ module command_decoder (
                 end
                 EXECUTE: begin
                     command_valid <= 1'b1;
+                    $display("Command Decoder: Command=%b, x1=%d, y1=%d, command_valid=%b",
+                             command, x1, y1, command_valid);
                     state <= IDLE;
                 end
             endcase
