@@ -21,7 +21,7 @@ module rasterizer (
     localparam R_DRAW  = 3'd1;
     localparam R_OUTPUT = 3'd2;
 
-    reg [6:0] output_counter; // Increased to 7 bits to count up to 64
+    reg [6:0] output_counter; 
     reg [2:0] x_addr, y_addr;
 
     always @(posedge clk or negedge rst_n) begin
@@ -66,13 +66,11 @@ module rasterizer (
                         end
                         2'b10: begin 
                             // TODO: Implement Bresenham's line algorithm
-                            // For now, just plot the two endpoints
                             frame_buffer[latched_y1][latched_x1] <= 1'b1;
                             frame_buffer[latched_y2][latched_x2] <= 1'b1; 
                         end
                         2'b11: begin 
                             // TODO: Implement a proper rectangle fill algorithm
-                            // For now, just fill a rectangular area
                             for (i = latched_y1; i <= latched_y1 + latched_height; i = i + 1) begin
                                 for (j = latched_x1; j <= latched_x1 + latched_width; j = j + 1) begin
                                     if (i < 8 && j < 8) begin 
@@ -80,6 +78,9 @@ module rasterizer (
                                     end
                                 end
                             end
+                        end
+                        default: begin  // Added default case
+                            // Do nothing or handle invalid commands
                         end
                     endcase
 
