@@ -48,11 +48,13 @@ async def test_command_processor(dut):
 
     # Send x1
     dut.ui_in.value = set_ui_in(en=1, cmd=0b01, param=(x1 & 0x07))
-    await ClockCycles(dut.clk, 1)
+    await ClockCycles(dut.clk, 2)  # Increased cycle count for stability
+    dut._log.info(f"Encoded x1 command sent: {dut.ui_in.value}")
 
     # Send y1 via NO_OP
     dut.ui_in.value = set_ui_in(en=1, cmd=0b00, param=(y1 & 0x07))
-    await ClockCycles(dut.clk, 1)
+    await ClockCycles(dut.clk, 2)  # Increased cycle count for stability
+    dut._log.info(f"Encoded y1 command sent: {dut.ui_in.value}")
 
     # Clear input
     dut.ui_in.value = 0
@@ -64,6 +66,7 @@ async def test_command_processor(dut):
     # One more cycle after frame_sync before reading pixels
     await RisingEdge(dut.clk)
 
+    # Read all pixel values
     pixel_values = []
     for i in range(64):
         await RisingEdge(dut.clk)
