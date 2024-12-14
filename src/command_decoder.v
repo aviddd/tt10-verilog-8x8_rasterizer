@@ -1,90 +1,86 @@
-module graphics_processor (
+module command_decoder (
+    input  wire [7:0] ui_in,
     input  wire clk,
     input  wire rst_n,
-    input  wire [1:0] command,
-    input  wire [2:0] x1, y1, x2, y2, rect_width, rect_height,
-    input  wire command_valid,
-    output reg  [3:0] pixel_data,
-    output reg  frame_start
+    output reg  [1:0] command,
+    output reg  [2:0] x1, y1, x2, y2, rect_width, rect_height,
+    output reg  command_valid
 );
 
-    reg [7:0] frame_buffer [0:7];
-    reg [5:0] pixel_count;
-    reg [1:0] latched_command; // Added latched command
-    reg [2:0] latched_x1, latched_y1, latched_x2, latched_y2, latched_rect_width, latched_rect_height; // Added latched parameters
-
-
-    // State machine for graphics processing
-    localparam IDLE = 2'd0,
-               DRAW = 2'd1,
-               OUTPUT = 2'd2;
-
-    reg [1:0] state;
+    reg [2:0] state;
+    localparam IDLE = 3'd0,
+               DECODE_CMD = 3'd1,
+               LOAD_PARAM1 = 3'd2,
+               LOAD_PARAM2 = 3'd3,
+               LOAD_PARAM3 = 3'd4,
+               EXECUTE = 3'd5;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state <= IDLE;
-            pixel_data <= 4'b0000;
-            frame_start <= 1'b0;
-            pixel_count <= 6'd0;
-            // Initialize frame buffer (clear screen)
-            for (int i = 0; i < 8; i++) begin
-                frame_buffer[i] <= 8'b00000000;
-            end
+            command <= 2'b00;
+            command_valid <= 1'b0;
+            x1 <= 3'd0;
+            y1 <= 3'd0;
+            x2 <= 3'd0;
+            y2 <= 3'd0;
+            rect_width <= 3'd0;
+            rect_height <= 3'd0;
         end else begin
             case (state)
                 IDLE: begin
-                    frame_start <= 1'b0;
-                    if (command_valid) begin
-                        // Latch the command and parameters
-                        latched_command <= command;
-                        latched_x1 <= x1;
-                        latched_y1 <= y1;
-                        latched_x2 <= x2;
-                        latched_y2 <= y2;
-                        latched_rect_width <= rect_width;
-                        latched_rect_height <= rect_height;
-                        state <= DRAW;
+                    command_valid <= 1'b0;
+                    if (ui_in[7]) begin  // Command start bit
+                        command <= ui_in[6:5];
+                        state <= DECODE_CMD;
                     end
                 end
-                DRAW: begin
-                    case (latched_command) // Use latched command
+                DECODE_CMD: begin
+                    case (command)
+                        2'b00: state <= IDLE; // NOOP
                         2'b01: begin // DRAW_PIXEL or CLEAR
-                            if (latched_x1 == 3'b111) begin // CLEAR
-                                for (int i = 0; i < 8; i++) begin
-                                    frame_buffer[i] <= 8'b00000000;
-                                end
+                            x1 <= ui_in[4:2];
+                            if (ui_in[4:2] == 3'b111) begin // CLEAR
+                                state <= EXECUTE;
                             end else begin
-                                frame_buffer[latched_y1][latched_x1] <= 1'b1;
+                                state <= LOAD_PARAM1;
                             end
                         end
                         2'b10: begin // DRAW_LINE
-                            // TODO: Implement Bresenham's line algorithm
-                            frame_buffer[latched_y1][latched_x1] <= 1'b1;
-                            frame_buffer[latched_y2][latched_x2] <= 1'b1;
+                            x1 <= ui_in[4:2];
+                            state <= LOAD_PARAM1;
                         end
                         2'b11: begin // FILL_RECT
-                            // TODO: Implement rectangle fill algorithm
-                            for (int i = latched_y1; i <= latched_y1 + latched_rect_height; i++) begin
-                                for (int j = latched_x1; j <= latched_x1 + latched_rect_width; j++) begin
-                                    if (i < 8 && j < 8) begin
-                                        frame_buffer[i][j] <= 1'b1;
-                                    end
-                                end
-                            end
+                            x1 <= ui_in[4:2];
+                            state <= LOAD_PARAM1;
                         end
                     endcase
-                    frame_start <= 1'b1;
-                    state <= OUTPUT;
-                    pixel_count <= 6'd0; 
                 end
-                OUTPUT: begin
-                    frame_start <= 1'b0;
-                    pixel_data <= frame_buffer[pixel_count[5:3]][pixel_count[2:0]];
-                    pixel_count <= pixel_count + 1'b1;
-                    if (pixel_count == 6'd63) begin
-                        state <= IDLE;
+                LOAD_PARAM1: begin
+                    y1 <= ui_in[4:2];
+                    if (command == 2'b01) begin // DRAW_PIXEL
+                        state <= EXECUTE;
+                    end else begin
+                        state <= LOAD_PARAM2;
                     end
+                end
+                LOAD_PARAM2: begin
+                    case (command)
+                        2'b10: x2 <= ui_in[4:2];  // DRAW_LINE
+                        2'b11: rect_width <= ui_in[4:2]; // FILL_RECT
+                    endcase
+                    state <= LOAD_PARAM3;
+                end
+                LOAD_PARAM3: begin
+                    case (command)
+                        2'b10: y2 <= ui_in[4:2];  // DRAW_LINE
+                        2'b11: rect_height <= ui_in[4:2]; // FILL_RECT
+                    endcase
+                    state <= EXECUTE;
+                end
+                EXECUTE: begin
+                    command_valid <= 1'b1;
+                    state <= IDLE;
                 end
             endcase
         end
