@@ -13,7 +13,7 @@ module tt_um_david_tinygpu (
 
     // Internal signals
     wire [1:0] command;
-    wire [2:0] x1, y1, x2, y2, rect_width, rect_height;
+    wire [2:0] x1, y1;
     wire command_valid;
     wire [3:0] pixel_data;
     wire frame_start;
@@ -26,10 +26,6 @@ module tt_um_david_tinygpu (
         .command(command),
         .x1(x1),
         .y1(y1),
-        .x2(x2),
-        .y2(y2),
-        .rect_width(rect_width),
-        .rect_height(rect_height),
         .command_valid(command_valid)
     );
 
@@ -40,10 +36,6 @@ module tt_um_david_tinygpu (
         .command(command),
         .x1(x1),
         .y1(y1),
-        .x2(x2),
-        .y2(y2),
-        .rect_width(rect_width),
-        .rect_height(rect_height),
         .command_valid(command_valid),
         .pixel_data(pixel_data),
         .frame_start(frame_start)
