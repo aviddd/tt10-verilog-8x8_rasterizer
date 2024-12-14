@@ -31,14 +31,16 @@ async def test_command_processor(dut):
 
     # Send x1
     dut.ui_in.value = set_ui_in(en=1, cmd=0b01, param=(x1 & 0x07))
-    await ClockCycles(dut.clk, 4)  # Increased delay
+    await ClockCycles(dut.clk, 4)
+    dut._log.info(f"Sent x1 command: {dut.ui_in.value}")
 
     # Send y1
     dut.ui_in.value = set_ui_in(en=1, cmd=0b00, param=(y1 & 0x07))
-    await ClockCycles(dut.clk, 4)  # Increased delay
+    await ClockCycles(dut.clk, 4)
+    dut._log.info(f"Sent y1 command: {dut.ui_in.value}")
 
     # Wait for frame_sync
-    await ClockCycles(dut.clk, 20)  # Allow time for the DUT to process
+    await ClockCycles(dut.clk, 20)
 
     pixel_values = []
     for i in range(64):
