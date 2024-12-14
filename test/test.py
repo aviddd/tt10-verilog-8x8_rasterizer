@@ -23,10 +23,6 @@ async def test_command_processor(dut):
         val = ((en & 1) << 7) | ((cmd & 0b11) << 5) | (param & 0x1F)
         return val
 
-    def sanitize_output(value):
-        """Convert 'x' and 'z' in binary string to '0'."""
-        return int(value.binstr.replace('x', '0').replace('z', '0'), 2)
-
     x1, y1 = 1, 1
 
     # Send x1
@@ -45,7 +41,7 @@ async def test_command_processor(dut):
     pixel_values = []
     for i in range(64):
         await RisingEdge(dut.clk)
-        pixel_values.append(sanitize_output(dut.uo_out.value))
+        pixel_values.append(int(dut.uo_out.value.integer) & 0xF)
         dut._log.info(f"Pixel index {i}: Pixel data={pixel_values[-1]}")
 
     # Assert pixel at (1,1) is set
